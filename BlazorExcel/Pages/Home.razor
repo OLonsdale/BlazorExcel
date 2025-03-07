@@ -1,0 +1,160 @@
+﻿@page "/"
+
+<style>
+    .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+
+    .table-container {
+        width: 100%;
+        max-height: 90vh;
+        overflow: auto;
+        border: 1px solid #ccc;
+    }
+
+    .grid-table {
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: max-content;
+    }
+
+    .grid-table td {
+        border: 1px solid #ccc;
+        padding: 5px;
+        width: 20ch;
+        min-width: 20ch;
+        max-width: 20ch;
+        height: 30px;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .grid-table td:hover {
+        background: #f0f0f0;
+    }
+
+    .grid-table .selected {
+        outline: 2px solid #007bff;
+        background: #e0f0ff;
+    }
+
+    .bold { font-weight: bold; }
+    .italic { font-style: italic; }
+    .align-start { text-align: start !important; }
+    .align-end { text-align: end !important; }
+    .align-center { text-align: center !important; }
+
+</style>
+
+<div class="controls">
+    <button @onclick="ToggleBold">Toggle Bold</button>
+    <button @onclick="ToggleItalic">Toggle Italic</button>
+    <input style="max-width: 10ch" type="color" @bind="selectedColor" />
+    <button @onclick="ApplyColor">Apply Color</button>
+    <button @onclick="AlignStart">Align Start</button>
+    <button @onclick="AlignCenter">Align Center</button>
+    <button @onclick="AlignEnd">Align End</button>
+</div>
+
+<input value="@SelectedCellContent" @oninput="UpdateCellContent" @ref="inputElement" />
+
+<div class="table-container">
+    <table class="grid-table">
+        <tbody>
+        @foreach (var row in grid.Rows)
+        {
+            <tr>
+                @foreach (Cell cell in row)
+                {
+                    <td @key="cell" class="@cell.CssClass" style="background-color: @cell.ColourHex" @onclick="() => SelectCell(cell)">
+                        @cell.Content
+                    </td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private ElementReference inputElement;
+    
+    public class Grid
+    {
+        public List<List<Cell>> Rows { get; }
+
+        public Grid(int rows, int cols)
+        {
+            Rows = Enumerable.Range(0, rows)
+                .Select(_ => Enumerable.Range(0, cols).Select(_ => new Cell()).ToList())
+                .ToList();
+        }
+    }
+
+    public class Cell
+    {
+        public string Content { get; set; } = "";
+        public string ColourHex { get; set; } = "";
+        public bool Bold { get; set; }
+        public bool Italic { get; set; }
+        public bool Selected { get; set; }
+        public DataType Type { get; set; } = DataType.Text;
+        public TextAlign Align { get; set; } = TextAlign.Start;
+        public string CssClass { get; private set; } = "align-start"; // Default class
+
+        public void UpdateClass()
+        {
+            CssClass = $"{(Bold ? "bold " : "")}{(Italic ? "italic " : "")}" +
+                       $"{(Align == TextAlign.Center ? "align-center " : "")}" +
+                       $"{(Align == TextAlign.Start ? "align-start " : "")}" +
+                       $"{(Align == TextAlign.End ? "align-end " : "")}" +
+                       $"{(Selected ? "selected" : "")}".TrimEnd();
+        }
+    }
+
+    public enum DataType { Text, Date, Int, Decimal }
+    public enum TextAlign { Start, End, Center }
+
+    private Grid grid = new(200, 200);
+    private Cell? selectedCell;
+    private string selectedColor = "#ffffff";
+
+    private async void SelectCell(Cell cell)
+    {
+        if (selectedCell is not null)
+        {
+            selectedCell.Selected = false;
+            selectedCell.UpdateClass();
+        }
+
+        selectedCell = cell;
+        selectedCell.Selected = true;
+        selectedCell.UpdateClass();
+
+        await Task.Delay(50);
+        await inputElement.FocusAsync();
+    }
+
+    private void ToggleBold() { if (selectedCell is not null) { selectedCell.Bold = !selectedCell.Bold; selectedCell.UpdateClass(); } }
+    private void ToggleItalic() { if (selectedCell is not null) { selectedCell.Italic = !selectedCell.Italic; selectedCell.UpdateClass(); } }
+    private void ApplyColor() { if (selectedCell is not null) { selectedCell.ColourHex = selectedColor; } }
+    private void AlignStart() { if (selectedCell is not null) { selectedCell.Align = TextAlign.Start; selectedCell.UpdateClass(); } }
+    private void AlignCenter() { if (selectedCell is not null) { selectedCell.Align = TextAlign.Center; selectedCell.UpdateClass(); } }
+    private void AlignEnd() { if (selectedCell is not null) { selectedCell.Align = TextAlign.End; selectedCell.UpdateClass(); } }
+
+    private string SelectedCellContent => selectedCell?.Content ?? string.Empty;
+
+    private void UpdateCellContent(ChangeEventArgs e)
+    {
+        if (selectedCell is not null)
+        {
+            selectedCell.Content = e.Value?.ToString() ?? "";
+        }
+    }
+}
